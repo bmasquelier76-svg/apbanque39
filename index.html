@@ -6944,6 +6944,35 @@ function sySet(o) { try { localStorage.setItem(SY_KEY, JSON.stringify(o)); } cat
 function syHash(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619) >>> 0; return h.toString(16) + ':' + str.length; }
 function syOn() { const c = syGet(); return !!(c.url && c.key && c.refresh); }
 let syBusy = false, syTimer = null, syLastErr = '';
+/* « Poids » des données : nombre de lignes, catégories, mouvements… 0 = appli vide */
+function syWeight(d) {
+    if (!d || typeof d !== 'object') return 0;
+    const cats = ['fixes', 'variables', 'tributs'].reduce((n, k) => n + (Array.isArray(d[k]) ? d[k].reduce((m, c) => m + 1 + ((c && c.items) || []).length, 0) : 0), 0);
+    return cats + (d.transactions || []).length + (d.historique || []).length + (d.historiqueMois || []).filter(Boolean).length + (d.comptesEp || []).length + (Number(d.solde) ? 1 : 0);
+}
+/* Copies de secours locales : avant chaque remplacement par le serveur, plus une par jour (5 gardées) */
+const SY_SNAP = 'mbz_secours';
+function sySnaps() { try { return JSON.parse(localStorage.getItem(SY_SNAP) || '[]'); } catch (e) { return []; } }
+function sySnap(raison, force) {
+    const json = localStorage.getItem(KEY); if (!json || json.length > 1500000) return;   // trop lourd (photos) : on ne remplit pas la mémoire
+    let d = null; try { d = JSON.parse(json); } catch (e) { return; }
+    if (!syWeight(d)) return;                                   // inutile de sauver une appli vide
+    let list = sySnaps();
+    const day = new Date().toISOString().slice(0, 10);
+    if (!force && list.some(x => x.at.slice(0, 10) === day)) return;            // une copie automatique par jour
+    list.unshift({ at: new Date().toISOString(), why: raison, hash: syHash(json), n: syWeight(d), data: json });
+    list = list.slice(0, 4);
+    while (list.length) { try { localStorage.setItem(SY_SNAP, JSON.stringify(list)); break; } catch (e) { list.pop(); } }
+}
+function syRestore(i) {
+    const s = sySnaps()[i]; if (!s) return;
+    if (!confirm('Remettre les données du ' + new Date(s.at).toLocaleString('fr-FR') + ' (' + s.n + ' éléments) ?\n\nElles remplaceront celles de cet appareil, puis seront envoyées sur le serveur.')) return;
+    sySnap('avant restauration', true);
+    localStorage.setItem(KEY, s.data);
+    const c = syGet(); c.hash = ''; c.forcePush = true; sySet(c);       // au rechargement : envoi sur le serveur
+    location.reload();
+}
+try { sySnap('copie du jour'); } catch (e) {}
 async function syFetch(path, opts, auth) {
     const c = syGet();
     const h = Object.assign({ apikey: c.key, 'Content-Type': 'application/json' }, opts.headers || {});
@@ -6969,18 +6998,25 @@ async function syPull() {
     await syToken();
     const c = syGet();
     const rows = await syFetch(`/rest/v1/budget?select=data,updated_at&user_id=eq.${c.uid}`, { method: 'GET' }, true);
-    return rows && rows[0] || null;
+    const row = rows && rows[0] || null;
+    const c2 = syGet(); c2.srvW = row ? syWeight(row.data) : 0; sySet(c2);
+    return row;
 }
-async function syPush() {
+async function syPush(sure) {
     await syToken();
     const c = syGet();
+    if (!sure && syWeight(store) <= 2 && (c.srvW || 0) > 2
+        && !confirm(`Cet appareil n'a plus aucune donnée, alors que le serveur en a (${c.srvW} éléments).\n\nOK : effacer aussi le serveur.\nAnnuler : ne rien envoyer (conseillé).`))
+        throw new Error("appli vide : rien n'a été envoyé pour ne pas effacer le serveur");
     const json = JSON.stringify(store);
     const rows = await syFetch('/rest/v1/budget', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
         body: JSON.stringify({ user_id: c.uid, data: store, updated_at: new Date().toISOString() }) }, true);
-    const c2 = syGet(); c2.remoteAt = rows && rows[0] ? rows[0].updated_at : new Date().toISOString(); c2.hash = syHash(json); c2.lastOk = Date.now(); sySet(c2);
+    const c2 = syGet(); c2.remoteAt = rows && rows[0] ? rows[0].updated_at : new Date().toISOString(); c2.hash = syHash(json); c2.srvW = syWeight(store); c2.lastOk = Date.now(); sySet(c2);
 }
 function syApplyRemote(row) {          // remplace les données de cet appareil par celles du serveur
-    const c = syGet(); c.remoteAt = row.updated_at; c.hash = syHash(JSON.stringify(row.data)); c.lastOk = Date.now(); sySet(c);
+    if (!row || !row.data || typeof row.data !== 'object') return;   // jamais de données vides
+    sySnap('avant récupération du serveur', true);
+    const c = syGet(); c.remoteAt = row.updated_at; c.srvW = syWeight(row.data); c.hash = syHash(JSON.stringify(row.data)); c.lastOk = Date.now(); sySet(c);
     localStorage.setItem(KEY, JSON.stringify(row.data));
     location.reload();
 }
@@ -6992,14 +7028,23 @@ async function sySync(first) {
         const c = syGet();
         const dirty = syHash(JSON.stringify(store)) !== c.hash;
         const row = await syPull();
-        if (row && row.updated_at !== c.remoteAt && new Date(row.updated_at) > new Date(c.remoteAt || 0)) {
+        const wLoc = syWeight(store), wSrv = row ? syWeight(row.data) : 0;
+        if (c.forcePush) { delete c.forcePush; sySet(c); await syPush(true); }
+        else if (row && row.updated_at !== c.remoteAt && new Date(row.updated_at) > new Date(c.remoteAt || 0)) {
             // le serveur a changé depuis la dernière synchro (autre appareil)
-            if (!dirty || (first && !c.remoteAt && STORE_FRESH)) { syApplyRemote(row); return; }
+            if (wLoc > 2 && wSrv < wLoc * 0.5) {
+                // le serveur a nettement MOINS de données qu'ici : jamais de remplacement sans demander
+                if (confirm(`⚠️ Le serveur contient beaucoup moins de données que cet appareil (${wSrv} éléments contre ${wLoc} ici).\n\nOK : garder les données de CET appareil et les renvoyer sur le serveur (conseillé).\nAnnuler : prendre quand même celles du serveur.`)) await syPush(true);
+                else { syApplyRemote(row); return; }
+            }
+            else if (!dirty || (first && !c.remoteAt && (STORE_FRESH || wLoc <= 2))) { syApplyRemote(row); return; }
+            else {
             const msg = first && !c.remoteAt
                 ? "Des données existent déjà sur le serveur.\n\nOK : les récupérer sur cet appareil (remplace les données d'ici).\nAnnuler : envoyer les données de cet appareil sur le serveur."
                 : "Tes données ont été modifiées sur un autre appareil ET sur celui-ci.\n\nOK : garder la version du serveur.\nAnnuler : garder la version de cet appareil.";
-            if (confirm(msg)) { syApplyRemote(row); return; }
-            await syPush();
+            if (confirm(msg + `\n\n(serveur : ${wSrv} éléments · cet appareil : ${wLoc})`)) { syApplyRemote(row); return; }
+            await syPush(true);
+            }
         } else if (dirty || !row) await syPush();
     } catch (e) { syLastErr = e.message || String(e); }
     syBusy = false; syStatus();
@@ -7041,6 +7086,12 @@ function syRender() {
             <button class="nc-ok sy-btn" onclick="sySyncNow()">🔄 Synchroniser maintenant</button>
             <button class="pin-link sy-link" onclick="syLogout()">Se déconnecter</button>`;
     }
+    el.insertAdjacentHTML('beforeend', sySnapsHtml());
+}
+function sySnapsHtml() {
+    const l = sySnaps(); if (!l.length) return '';
+    return `<p class="pref-note" style="margin-top:14px">🛟 Copies de secours sur cet appareil :</p>` + l.map((x, i) =>
+        `<button class="pref-opt sy-btn2" style="width:100%;margin:0 0 6px;text-align:left" onclick="syRestore(${i})">↩️ ${new Date(x.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${x.n} éléments<br><small style="opacity:.7">${syEsc(x.why)}</small></button>`).join('');
 }
 function openSync() { syRender(); document.getElementById('syncModal').style.display = 'flex'; }
 function closeSync() { document.getElementById('syncModal').style.display = 'none'; }
