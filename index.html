@@ -6862,6 +6862,21 @@ function pinHash(code) {            // empreinte du code (le code lui-même n'es
     return h1.toString(16) + h2.toString(16);
 }
 function pinGet() { try { return localStorage.getItem('mbz_pin'); } catch (e) { return null; } }
+/* Le code (son empreinte, jamais le code lui-même) voyage avec les données synchronisées : store.pinSync = { h, at } */
+function pinSetLocal(h, at) {
+    try { if (h) localStorage.setItem('mbz_pin', h); else localStorage.removeItem('mbz_pin'); localStorage.setItem('mbz_pin_at', String(at)); } catch (e) {}
+}
+function pinStore(h) {                 // changement fait sur cet appareil : on le garde et on l'envoie aux autres
+    const at = Date.now(); pinSetLocal(h, at);
+    store.pinSync = { h: h || null, at }; save();
+}
+(function pinReconcile() {
+    try {
+        const r = store.pinSync, la = +localStorage.getItem('mbz_pin_at') || 0, loc = pinGet();
+        if (r && r.at > la) pinSetLocal(r.h, r.at);                         // code choisi / retiré sur un autre appareil
+        else if (!r && loc) { store.pinSync = { h: loc, at: la || Date.now() }; localStorage.setItem(KEY, JSON.stringify(store)); }   // 1re fois : partage le code existant
+    } catch (e) {}
+})();
 let pinMode = null, pinBuf = '', pinFirst = '', pinFails = 0, pinWaitUntil = 0;
 function pinShow(mode) {
     pinMode = mode; pinBuf = ''; pinFirst = '';
@@ -6894,7 +6909,7 @@ function pinPress(k) {
         } else if (!pinFirst) {
             pinFirst = pinBuf; pinBuf = ''; pinDots(); pinSub('Tape-le une 2e fois pour confirmer');
         } else if (pinBuf === pinFirst) {
-            try { localStorage.setItem('mbz_pin', pinHash(pinBuf)); } catch (e) {}
+            pinStore(pinHash(pinBuf));
             pinHide(); pinPrefRender();
         } else {
             pinShake(); pinFirst = ''; pinBuf = ''; pinDots(); pinSub('Les deux codes sont différents, recommence', true);
@@ -6904,15 +6919,15 @@ function pinPress(k) {
 function pinCancel() { pinHide(); }
 function pinForgot() {
     if (!confirm("Supprimer le code PIN ?\n\nTes données restent intactes. Tu pourras en choisir un nouveau dans Paramètres → Préférences.")) return;
-    try { localStorage.removeItem('mbz_pin'); } catch (e) {}
+    pinStore(null);
     pinHide();
 }
-function pinOff() { if (!confirm('Désactiver le code PIN ?')) return; try { localStorage.removeItem('mbz_pin'); } catch (e) {} pinPrefRender(); }
+function pinOff() { if (!confirm('Désactiver le code PIN ? (sur tous tes appareils synchronisés)')) return; pinStore(null); pinPrefRender(); }
 function pinPrefRender() {
     const el = document.getElementById('pinPref'); if (!el) return;
     const on = !!pinGet();
     el.innerHTML = on
-        ? `<p class="pref-note">🔒 Le code est demandé à l'ouverture et quand tu reviens dans l'appli après 2 minutes.</p>
+        ? `<p class="pref-note">🔒 Le code est demandé à l'ouverture et quand tu reviens dans l'appli après 2 minutes. Avec la synchro, il est le même sur tous tes appareils.</p>
            <div class="pin-pref-row"><button class="pref-opt" onclick="closePrefs(); pinShow('set')"><b>Changer le code</b></button><button class="pref-opt pin-off" onclick="pinOff()"><b>Désactiver</b></button></div>`
         : `<button class="pref-opt" onclick="closePrefs(); pinShow('set')"><span class="pref-dot"></span><span><b>Activer un code PIN</b><small>Un code à ${PIN_LEN} chiffres sera demandé à chaque ouverture.</small></span></button>`;
 }
