@@ -1057,6 +1057,10 @@ html, body, button, a, input, select, label, [onclick] { touch-action: manipulat
 .sum-name { font-family: var(--f-title); font-size: 18px; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 22px; }
 .sum-amt { font-family: var(--f-title); font-size: 24px; letter-spacing: 0.5px; }
 .sum-sub { font-size: 12px; color: rgba(255,255,255,0.65); }
+/* sur une seule ligne : le début se raccourcit (…), le « reste » reste toujours entier */
+.sum-sub:has(.ss-a) { display: flex; gap: 4px; white-space: nowrap; min-width: 0; }
+.sum-sub .ss-a { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sum-sub .ss-b { flex: 0 0 auto; }
 .sum-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.15); overflow: hidden; margin-top: 3px; }
 .sum-bar > div { height: 100%; border-radius: 3px; background: #55ff88; }
 .sum-arrow { position: absolute; top: 10px; right: 10px; font-size: 14px; opacity: 0.6; }
@@ -5358,7 +5362,7 @@ function sumCard(type, cat) {
         const pct = tot ? Math.min(100, paid / tot * 100) : 0;
         const col = pct >= 100 ? '#55ff88' : pct >= 50 ? '#ffaa44' : '#ff8a65';
         body = `<div class="sum-amt">${sumEur(tot)}</div>
-                <div class="sum-sub">${cat.items.length ? 'payé ' + sumEur(paid) + ' · reste <b style="color:' + col + '">' + sumEur(tot - paid) + '</b>' : ''}</div>
+                <div class="sum-sub">${cat.items.length ? '<span class="ss-a">payé ' + sumEur(paid) + ' ·</span><span class="ss-b">reste <b style="color:' + col + '">' + sumEur(tot - paid) + '</b></span>' : ''}</div>
                 ${cat.items.length ? `<div class="sum-bar"><div style="width:${pct}%;background:${col}"></div></div>` : ''}`;
     } else if (type === 'trib') {
         const tot = cat.items.reduce((s, i) => s + i.amt, 0), done = cat.items.filter(i => i.done).length;
@@ -5367,7 +5371,7 @@ function sumCard(type, cat) {
         const sp = varSpent(cat), bud = cat.budget || 0, pct = bud ? Math.min(100, sp / bud * 100) : 0;
         const over = bud && sp > bud, col = over ? '#ff4444' : pct > 80 ? '#ffaa44' : '#55ff88';
         body = `<div class="sum-amt">${sumEur(sp)}</div>
-                <div class="sum-sub">${bud ? 'sur ' + sumEur(bud) + ' · reste <b style="color:' + col + '">' + sumEur(bud - sp) + '</b>' : ''}</div>
+                <div class="sum-sub">${bud ? '<span class="ss-a">sur ' + sumEur(bud) + ' ·</span><span class="ss-b">reste <b style="color:' + col + '">' + sumEur(bud - sp) + '</b></span>' : ''}</div>
                 ${bud ? `<div class="sum-bar"><div style="width:${pct}%;background:${col}"></div></div>` : ''}`;
     }
     return `<div role="button" tabindex="0" class="sum-card${type === 'trib' ? ' green' : ''}" onclick="openCatDetail('${type}', this.dataset.name)" onkeydown="if(event.key==='Enter')this.click()" data-name="${name}">
@@ -6363,7 +6367,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h10</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h20</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
