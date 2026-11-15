@@ -2,7 +2,7 @@
    À déposer à côté de index.html (même dossier sur GitHub Pages).
    - la page : réseau d'abord (pour recevoir les mises à jour), copie en cache si pas de réseau
    - photos des thèmes, polices, scripts : cache d'abord, téléchargés une fois puis gardés */
-const VERSION = 'mbz-v2';
+const VERSION = 'mbz-v3';
 const PAGE = 'mbz-page-' + VERSION;
 const MEDIA = 'mbz-media-' + VERSION;
  
@@ -25,7 +25,7 @@ self.addEventListener('fetch', e => {
  
     // la page elle-même : réseau d'abord, cache si hors-ligne
     if (req.mode === 'navigate' || (url.origin === location.origin && /\/(index\.html)?$/.test(url.pathname))) {
-        e.respondWith(fetch(req).then(res => {
+        e.respondWith(fetch(req.url, { cache: 'no-store', credentials: 'same-origin' }).then(res => {   // toujours la dernière version publiée
             if (res.ok) { const copy = res.clone(); caches.open(PAGE).then(c => c.put('./index.html', copy)); }
             return res;
         }).catch(() => caches.match('./index.html').then(r => r || caches.match('./'))));
