@@ -1045,7 +1045,7 @@ html, body, button, a, input, select, label, [onclick] { touch-action: manipulat
     border: 1px solid var(--card-border-white);
     backdrop-filter: blur(12px) saturate(150%); -webkit-backdrop-filter: blur(12px) saturate(150%);
     box-shadow: 0 6px 18px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
-    display: flex; flex-direction: column; gap: 3px; font-family: var(--f-body);
+    display: flex; flex-direction: column; justify-content: flex-start; gap: 3px; font-family: var(--f-body); user-select: none; -webkit-user-select: none;
     transition: transform 0.12s ease, box-shadow 0.2s ease;
     -webkit-tap-highlight-color: transparent;
 }
@@ -5368,9 +5368,9 @@ function sumCard(type, cat) {
                 <div class="sum-sub">${bud ? 'sur ' + sumEur(bud) + ' · reste <b style="color:' + col + '">' + sumEur(bud - sp) + '</b>' : ''}</div>
                 ${bud ? `<div class="sum-bar"><div style="width:${pct}%;background:${col}"></div></div>` : ''}`;
     }
-    return `<button class="sum-card${type === 'trib' ? ' green' : ''}" onclick="openCatDetail('${type}', this.dataset.name)" data-name="${name}">
+    return `<div role="button" tabindex="0" class="sum-card${type === 'trib' ? ' green' : ''}" onclick="openCatDetail('${type}', this.dataset.name)" onkeydown="if(event.key==='Enter')this.click()" data-name="${name}">
         <span class="sum-emoji">${em}</span><span class="sum-arrow">›</span>
-        <div class="sum-name">${name}</div>${body}</button>`;
+        <div class="sum-name">${name}</div>${body}</div>`;
 }
 function sumFill(id, type, list, emptyTxt) {
     const el = document.getElementById(id); if (!el) return;
@@ -6361,7 +6361,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 15-11 · 23h55</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h05</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
