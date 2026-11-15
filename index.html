@@ -6379,7 +6379,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h50</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 1h00</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
@@ -6800,7 +6800,8 @@ function fitEncours() {   // PC : les deux montants de l'Encours CB remplissent 
     if (!t) return;
     const bs = Array.from(t.querySelectorAll('.enc-part b'));
     const mob = window.innerWidth < 768;
-    if ((!mob && window.innerWidth < 1024) || !t.clientWidth) { bs.forEach(b => b.style.removeProperty('font-size')); return; }
+    if (!t.clientWidth) return;                       // page cachée (swipe) : on garde la taille déjà calculée
+    if (!mob && window.innerWidth < 1024) { bs.forEach(b => b.style.removeProperty('font-size')); return; }
     const REF = 100;
     bs.forEach(b => b.style.setProperty('font-size', REF + 'px', 'important'));
     const ch = t.clientHeight;
@@ -6812,7 +6813,7 @@ function fitEncours() {   // PC : les deux montants de l'Encours CB remplissent 
 function fitAmounts() {
     /* Une seule passe : on remet les tailles, on mesure tout d'un coup, puis on écrit tout d'un coup
        (évite des dizaines de recalculs de mise en page à chaque redimensionnement) */
-    const els = Array.from(document.querySelectorAll('.chip-val, .mini-val, .sum-amt, .hs-num, .hm-num')).filter(el => !el.closest('.acc-bento'));
+    const els = Array.from(document.querySelectorAll('.chip-val, .mini-val, .sum-amt, .hs-num, .hm-num')).filter(el => !el.closest('.acc-bento') && el.offsetParent);   // pages cachées : tailles gardées
     els.forEach(el => el.style.removeProperty('font-size'));
     fitBento();
     fitEncours();
