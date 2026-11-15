@@ -3240,7 +3240,9 @@ function swPeek(el, x) {               // affiche une page en superposition, dé
         el.dataset.peek = '1';
         el.style.position = 'absolute';
         el.style.top = ref.offsetTop + 'px';
-        el.style.left = '12px'; el.style.right = '12px';
+        el.style.left = ref.offsetLeft + 'px'; el.style.width = ref.offsetWidth + 'px';   // exactement la même largeur qu'à l'affichage normal
+        el.style.right = 'auto'; el.style.boxSizing = 'border-box';
+        if (el === accueilPage && accueilPage._h) el.style.height = accueilPage._h + 'px';  // même hauteur : les tuiles ne se tassent pas
         el.style.display = el === accueilPage ? 'flex' : 'block';
         el.style.zIndex = '5';
     }
@@ -3248,10 +3250,12 @@ function swPeek(el, x) {               // affiche une page en superposition, dé
 }
 function swUnpeek(el) {
     delete el.dataset.peek;
-    ['position','top','left','right','zIndex','transform','transition'].forEach(p => el.style[p] = '');
+    ['position','top','left','right','width','height','boxSizing','zIndex','transform','transition'].forEach(p => el.style[p] = '');
 }
+function swRemember() { if (accueilPage.offsetHeight && !accueilPage.dataset.peek) accueilPage._h = accueilPage.offsetHeight; }
 function swStart(e, from) {
     if (IS_PC() || e.touches.length > 1) return;
+    swRemember();
     sw = { from, x0: e.touches[0].clientX, y0: e.touches[0].clientY, t0: Date.now(), dx: 0, mode: null };
     accueilPage.style.transition = 'none'; wrapper.style.transition = 'none'; track.style.transition = 'none';
     accueilPage.style.willChange = wrapper.style.willChange = 'transform';   // calque GPU seulement pendant le geste
@@ -6372,7 +6376,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h30</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h40</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
@@ -6826,7 +6830,8 @@ function fitAmounts() {
     let fitPending = false;
     addEventListener('resize', () => { if (fitPending) return; fitPending = true; requestAnimationFrame(() => { fitPending = false; fitAmounts(); }); });
     const _nav = nav;
-    nav = function () { _nav.apply(this, arguments); setTimeout(fitAmounts, 60); };
+    nav = function () { if (typeof swRemember === 'function') swRemember(); _nav.apply(this, arguments); setTimeout(() => { fitAmounts(); if (typeof swRemember === 'function') swRemember(); }, 60); };
+    addEventListener('load', () => setTimeout(() => { if (typeof swRemember === 'function') swRemember(); }, 300));
     requestAnimationFrame(fitAmounts);
 })();
 </script>
