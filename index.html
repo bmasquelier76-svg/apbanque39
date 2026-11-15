@@ -4437,6 +4437,10 @@ html[data-theme="sobre"] .cam-card { border-radius: 6px; background: rgba(255,25
 /* Sobre : grand € en filigrane dans les boîtes de dialogue (comme le fond de l'écran) */
 html.th-sobre :is(#cbWin, #editWin, #numpadWin, #epWin, #newCatWin, #acWin, #pvWin, #catDetail, #bgPanel, #paramsMenu, .modal-box) {
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='54' text-anchor='middle' dominant-baseline='middle' font-family='Inter,Helvetica Neue,Arial,sans-serif' font-weight='700' font-size='96' fill='white' fill-opacity='0.05' stroke='white' stroke-opacity='0.07' stroke-width='0.6'%3E%E2%82%AC%3C/text%3E%3C/svg%3E") center / min(88%, 420px) auto no-repeat, var(--sb-panel) !important; }
+/* Sobre : la page d'une catégorie reprend le dégradé noir → bleu Petronas, la carte reste par-dessus */
+html.th-sobre #catDetail { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='54' text-anchor='middle' dominant-baseline='middle' font-family='Inter,Helvetica Neue,Arial,sans-serif' font-weight='700' font-size='96' fill='white' fill-opacity='0.05' stroke='white' stroke-opacity='0.07' stroke-width='0.6'%3E%E2%82%AC%3C/text%3E%3C/svg%3E") center 60% / min(88%, 420px) auto no-repeat, linear-gradient(160deg, #000000 20%, #00a19c) !important; border: none !important; border-radius: 0 !important; }
+html.th-sobre #catDetail #cdBody .cat-card { background: var(--sb-panel) !important; border: 1px solid var(--sb-line) !important; box-shadow: 0 10px 30px rgba(0,0,0,0.45) !important; }
+
 .th-perso { grid-column: 1 / -1; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.12); }
 .th-perso-row { display: flex; gap: 6px; margin-bottom: 6px; }
 .th-btn { flex: 1; padding: 8px 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85);
