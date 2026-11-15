@@ -1050,6 +1050,8 @@ html, body, button, a, input, select, label, [onclick] { touch-action: manipulat
     -webkit-tap-highlight-color: transparent;
 }
 .sum-card:active { transform: scale(0.96); }
+.sum-card > * { flex-shrink: 0; }   /* Safari : aucune ligne ne doit être écrasée quand le texte passe sur 2 lignes */
+.sum-name { line-height: 1.25; min-height: 1.25em; }
 .sum-card.green { border-color: rgba(85,255,136,0.35); }
 .sum-emoji { position: absolute; right: -6px; bottom: -10px; font-size: 52px; opacity: 0.35; transform: rotate(-12deg); pointer-events: none; }
 .sum-name { font-family: var(--f-title); font-size: 18px; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 22px; }
@@ -6361,7 +6363,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h05</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h10</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
