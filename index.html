@@ -1078,6 +1078,7 @@ html, body, button, a, input, select, label, [onclick] { touch-action: manipulat
 .cd-name { font-family: var(--f-title); font-size: 28px; letter-spacing: 1px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #cdDeco { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
 #cdDeco span { position: absolute; line-height: 1; }
+#cdWin { position: relative; z-index: 1; }
 #cdBody { position: relative; z-index: 1; max-width: 520px; margin: 0 auto; }
 #cdBody .cat-card { background: rgba(0,0,0,0.28); }
 
@@ -4438,8 +4439,16 @@ html[data-theme="sobre"] .cam-card { border-radius: 6px; background: rgba(255,25
 html.th-sobre :is(#cbWin, #editWin, #numpadWin, #epWin, #newCatWin, #acWin, #pvWin, #catDetail, #bgPanel, #paramsMenu, .modal-box) {
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='54' text-anchor='middle' dominant-baseline='middle' font-family='Inter,Helvetica Neue,Arial,sans-serif' font-weight='700' font-size='96' fill='white' fill-opacity='0.05' stroke='white' stroke-opacity='0.07' stroke-width='0.6'%3E%E2%82%AC%3C/text%3E%3C/svg%3E") center / min(88%, 420px) auto no-repeat, var(--sb-panel) !important; }
 /* Sobre : la page d'une catégorie reprend le dégradé noir → bleu Petronas, la carte reste par-dessus */
-html.th-sobre #catDetail { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='54' text-anchor='middle' dominant-baseline='middle' font-family='Inter,Helvetica Neue,Arial,sans-serif' font-weight='700' font-size='96' fill='white' fill-opacity='0.05' stroke='white' stroke-opacity='0.07' stroke-width='0.6'%3E%E2%82%AC%3C/text%3E%3C/svg%3E") center 60% / min(88%, 420px) auto no-repeat, linear-gradient(160deg, #000000 20%, #00a19c) !important; border: none !important; border-radius: 0 !important; }
-html.th-sobre #catDetail #cdBody .cat-card { background: var(--sb-panel) !important; border: 1px solid var(--sb-line) !important; box-shadow: 0 10px 30px rgba(0,0,0,0.45) !important; }
+/* Sobre : la page d'une catégorie s'ouvre en fenêtre par-dessus l'appli floutée (comme « Nouvelle catégorie ») */
+html.th-sobre #catDetail { background: rgba(0,0,0,0.6) !important; backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important;
+    border: none !important; border-radius: 0 !important; box-shadow: none !important; padding: 16px 14px calc(16px + env(safe-area-inset-bottom)) !important; }
+html.th-sobre #catDetail.open { display: flex !important; flex-direction: column; }
+html.th-sobre #cdDeco { display: none !important; }
+html.th-sobre #cdWin { width: 100%; max-width: 520px; margin: auto; border-radius: 12px; padding: 16px 14px 14px; border: 1px solid var(--sb-line);
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='54' text-anchor='middle' dominant-baseline='middle' font-family='Inter,Helvetica Neue,Arial,sans-serif' font-weight='700' font-size='96' fill='white' fill-opacity='0.05' stroke='white' stroke-opacity='0.07' stroke-width='0.6'%3E%E2%82%AC%3C/text%3E%3C/svg%3E") center 60% / min(88%, 420px) auto no-repeat, linear-gradient(160deg, #000000 20%, #00a19c);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.55); animation: npUp 0.25s cubic-bezier(.34,1.4,.64,1); }
+html.th-sobre #cdWin .cd-head { margin-top: 0; }
+html.th-sobre .sum-card, html.th-sobre #catDetail #cdBody .cat-card { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='54' text-anchor='middle' dominant-baseline='middle' font-family='Inter,Helvetica Neue,Arial,sans-serif' font-weight='700' font-size='96' fill='white' fill-opacity='0.05' stroke='white' stroke-opacity='0.07' stroke-width='0.6'%3E%E2%82%AC%3C/text%3E%3C/svg%3E") center / auto 120% no-repeat, var(--sb-panel) !important; border: 1px solid var(--sb-line) !important; box-shadow: 0 10px 30px rgba(0,0,0,0.45) !important; }
 
 .th-perso { grid-column: 1 / -1; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.12); }
 .th-perso-row { display: flex; gap: 6px; margin-bottom: 6px; }
@@ -5311,14 +5320,16 @@ editSolde = function() {
 </script>
 
 <!-- PAGE DÉTAIL D'UNE CATÉGORIE -->
-<div id="catDetail" role="dialog" aria-modal="true" aria-labelledby="cdName">
+<div id="catDetail" role="dialog" aria-modal="true" aria-labelledby="cdName" onclick="if(event.target===this && document.documentElement.classList.contains('th-sobre'))closeCatDetail()">
     <div id="cdDeco"></div>
+    <div id="cdWin">
     <div class="cd-head" style="max-width:520px;margin-left:auto;margin-right:auto;">
         <button class="cd-back" onclick="closeCatDetail()" aria-label="Retour">←</button>
         <div class="cd-emoji" id="cdEmoji"></div>
         <div class="cd-title"><div class="cd-kind" id="cdKind"></div><div class="cd-name" id="cdName"></div></div>
     </div>
     <div id="cdBody"></div>
+    </div>
 </div>
 
 <script>
