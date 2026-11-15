@@ -3252,7 +3252,10 @@ function swUnpeek(el) {
     delete el.dataset.peek;
     ['position','top','left','right','width','height','boxSizing','zIndex','transform','transition'].forEach(p => el.style[p] = '');
 }
-function swRemember() { if (accueilPage.offsetHeight && !accueilPage.dataset.peek) accueilPage._h = accueilPage.offsetHeight; }
+function swRemember() {            // hauteur de l'accueil quand il est SEUL à l'écran (sinon il partage la place et paraît tassé)
+    if (accueilPage.offsetHeight && !accueilPage.dataset.peek && !wrapper.dataset.peek && getComputedStyle(wrapper).display === 'none') accueilPage._h = accueilPage.offsetHeight;
+}
+addEventListener('resize', () => setTimeout(swRemember, 200));
 function swStart(e, from) {
     if (IS_PC() || e.touches.length > 1) return;
     swRemember();
@@ -6376,7 +6379,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h40</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h50</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
