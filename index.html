@@ -6361,7 +6361,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 15-11 · 22h45</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 15-11 · 23h55</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
@@ -7027,12 +7027,12 @@ async function syPush(sure) {
     const json = JSON.stringify(store);
     const rows = await syFetch('/rest/v1/budget', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
         body: JSON.stringify({ user_id: c.uid, data: store, updated_at: new Date().toISOString() }) }, true);
-    const c2 = syGet(); c2.remoteAt = rows && rows[0] ? rows[0].updated_at : new Date().toISOString(); c2.hash = syHash(json); c2.srvW = syWeight(store); c2.lastOk = Date.now(); sySet(c2);
+    const c2 = syGet(); c2.remoteAt = rows && rows[0] ? rows[0].updated_at : new Date().toISOString(); delete c2.localAt; c2.hash = syHash(json); c2.srvW = syWeight(store); c2.lastOk = Date.now(); sySet(c2);
 }
 function syApplyRemote(row) {          // remplace les données de cet appareil par celles du serveur
     if (!row || !row.data || typeof row.data !== 'object') return;   // jamais de données vides
     sySnap('avant récupération du serveur', true);
-    const c = syGet(); c.remoteAt = row.updated_at; c.srvW = syWeight(row.data); c.hash = syHash(JSON.stringify(row.data)); c.lastOk = Date.now(); sySet(c);
+    const c = syGet(); delete c.localAt; c.remoteAt = row.updated_at; c.srvW = syWeight(row.data); c.hash = syHash(JSON.stringify(row.data)); c.lastOk = Date.now(); sySet(c);
     localStorage.setItem(KEY, JSON.stringify(row.data));
     location.reload();
 }
@@ -7058,8 +7058,14 @@ async function sySync(first) {
             const msg = first && !c.remoteAt
                 ? "Des données existent déjà sur le serveur.\n\nOK : les récupérer sur cet appareil (remplace les données d'ici).\nAnnuler : envoyer les données de cet appareil sur le serveur."
                 : "Tes données ont été modifiées sur un autre appareil ET sur celui-ci.\n\nOK : garder la version du serveur.\nAnnuler : garder la version de cet appareil.";
-            if (confirm(msg + `\n\n(serveur : ${wSrv} éléments · cet appareil : ${wLoc})`)) { syApplyRemote(row); return; }
-            await syPush(true);
+            if (c.remoteAt && c.localAt) {
+                // modifié des deux côtés : la modification la plus récente gagne (une copie de secours est faite avant)
+                if (new Date(row.updated_at).getTime() > c.localAt) { syApplyRemote(row); return; }
+                await syPush(true);
+            } else {
+                if (confirm(msg + `\n\n(serveur : ${wSrv} éléments · cet appareil : ${wLoc})`)) { syApplyRemote(row); return; }
+                await syPush(true);
+            }
             }
         } else if (dirty || !row) await syPush();
     } catch (e) { syLastErr = e.message || String(e); }
@@ -7067,6 +7073,7 @@ async function sySync(first) {
 }
 function syOnSave() {                  // après chaque modification : envoi 2 s plus tard
     if (!syOn()) return;
+    { const c = syGet(); if (syHash(JSON.stringify(store)) !== c.hash) { c.localAt = Date.now(); sySet(c); } }
     clearTimeout(syTimer);
     syTimer = setTimeout(() => {
         if (syHash(JSON.stringify(store)) === syGet().hash) return;
@@ -7102,7 +7109,36 @@ function syRender() {
             <button class="nc-ok sy-btn" onclick="sySyncNow()">🔄 Synchroniser maintenant</button>
             <button class="pin-link sy-link" onclick="syLogout()">Se déconnecter</button>`;
     }
+    if (c.refresh && !c.edit) el.insertAdjacentHTML('beforeend', `<button class="pref-opt sy-btn2" style="width:100%;margin:14px 0 6px" onclick="syHistOpen()">🕘 Historique sur le serveur</button><div id="syHist"></div>`);
     el.insertAdjacentHTML('beforeend', sySnapsHtml());
+}
+/* Historique sur le serveur (table budget_history, voir supabase-historique.sql) */
+async function syHistOpen() {
+    const box = document.getElementById('syHist'); if (!box) return;
+    box.innerHTML = '<p class="pref-note">Chargement…</p>';
+    try {
+        await syToken();
+        const rows = await syFetch('/rest/v1/budget_history?select=id,saved_at,taille&order=id.desc&limit=60', { method: 'GET' }, true);
+        if (!rows || !rows.length) { box.innerHTML = `<p class="pref-note">Aucune version pour l'instant : elles apparaîtront au fil de tes modifications.</p>`; return; }
+        box.innerHTML = rows.map(r => `<button class="pref-opt sy-btn2" style="width:100%;margin:0 0 6px;text-align:left" onclick="syHistRestore(${r.id}, '${r.saved_at}')">↩️ ${new Date(r.saved_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} <small style="opacity:.7">· ${Math.max(1, Math.round(r.taille / 1024))} Ko</small></button>`).join('');
+    } catch (e) {
+        box.innerHTML = /budget_history|42P01|not find|does not exist|404/i.test(e.message + ' ' + e.status)
+            ? `<p class="pref-note">⚠️ L'historique n'est pas encore installé : colle le fichier supabase-historique.sql dans Supabase (SQL Editor → New query → Run).</p>`
+            : `<p class="pref-note">Erreur : ${syEsc(e.message)}</p>`;
+    }
+}
+async function syHistRestore(id, at) {
+    if (!confirm('Revenir à la version du serveur du ' + new Date(at).toLocaleString('fr-FR') + ' ?\n\nElle remplacera les données de cet appareil puis sera renvoyée sur le serveur (une copie de secours est faite avant).')) return;
+    try {
+        await syToken();
+        const rows = await syFetch(`/rest/v1/budget_history?select=data&id=eq.${id}`, { method: 'GET' }, true);
+        const d = rows && rows[0] && rows[0].data;
+        if (!d || typeof d !== 'object') throw new Error('version introuvable');
+        sySnap('avant retour à une version du serveur', true);
+        localStorage.setItem(KEY, JSON.stringify(d));
+        const c = syGet(); c.hash = ''; c.forcePush = true; sySet(c);
+        location.reload();
+    } catch (e) { alert('Erreur : ' + e.message); }
 }
 function sySnapsHtml() {
     const l = sySnaps(); if (!l.length) return '';
