@@ -4441,6 +4441,11 @@ html[data-theme="sobre"] .cam-card { border-radius: 6px; background: rgba(255,25
 .sy-link { display: block; margin: 8px auto 0; }
 .sy-ok { margin: 4px 0 10px; line-height: 1.5; }
 .sy-ok small { opacity: .7; }
+.sy-ver { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 5px; padding: 8px 12px;
+    border-radius: 9px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.sy-ver span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sy-ver small { flex: 0 0 auto; opacity: .6; font-size: 11px; text-align: right; max-width: 45%; }
+.sy-mini { font-size: 12px !important; margin: 6px 0 8px !important; }
 /* Sobre : grand € en filigrane dans les boîtes de dialogue (comme le fond de l'écran) */
 html.th-sobre :is(#cbWin, #editWin, #numpadWin, #epWin, #newCatWin, #acWin, #pvWin, #catDetail, #bgPanel, #paramsMenu, .modal-box) {
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='54' text-anchor='middle' dominant-baseline='middle' font-family='Inter,Helvetica Neue,Arial,sans-serif' font-weight='700' font-size='96' fill='white' fill-opacity='0.05' stroke='white' stroke-opacity='0.07' stroke-width='0.6'%3E%E2%82%AC%3C/text%3E%3C/svg%3E") center / min(88%, 420px) auto no-repeat, var(--sb-panel) !important; }
@@ -6367,7 +6372,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h20</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 0h30</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
@@ -7115,7 +7120,7 @@ function syRender() {
             <button class="nc-ok sy-btn" onclick="sySyncNow()">🔄 Synchroniser maintenant</button>
             <button class="pin-link sy-link" onclick="syLogout()">Se déconnecter</button>`;
     }
-    if (c.refresh && !c.edit) el.insertAdjacentHTML('beforeend', `<button class="pref-opt sy-btn2" style="width:100%;margin:14px 0 6px" onclick="syHistOpen()">🕘 Historique sur le serveur</button><div id="syHist"></div>`);
+    if (c.refresh && !c.edit) el.insertAdjacentHTML('beforeend', `<button class="pin-link sy-link" style="margin-top:10px" onclick="syHistOpen()">🕘 Voir l'historique sur le serveur</button><div id="syHist"></div>`);
     el.insertAdjacentHTML('beforeend', sySnapsHtml());
 }
 /* Historique sur le serveur (table budget_history, voir supabase-historique.sql) */
@@ -7126,7 +7131,7 @@ async function syHistOpen() {
         await syToken();
         const rows = await syFetch('/rest/v1/budget_history?select=id,saved_at,taille&order=id.desc&limit=60', { method: 'GET' }, true);
         if (!rows || !rows.length) { box.innerHTML = `<p class="pref-note">Aucune version pour l'instant : elles apparaîtront au fil de tes modifications.</p>`; return; }
-        box.innerHTML = rows.map(r => `<button class="pref-opt sy-btn2" style="width:100%;margin:0 0 6px;text-align:left" onclick="syHistRestore(${r.id}, '${r.saved_at}')">↩️ ${new Date(r.saved_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} <small style="opacity:.7">· ${Math.max(1, Math.round(r.taille / 1024))} Ko</small></button>`).join('');
+        box.innerHTML = `<p class="pref-note sy-mini">Versions gardées par le serveur (la liste se remplit au fil des modifications). Touche une version pour y revenir.</p>` + rows.map(r => `<button class="sy-ver" onclick="syHistRestore(${r.id}, '${r.saved_at}')"><span>↩️ ${new Date(r.saved_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span><small>${Math.max(1, Math.round(r.taille / 1024))} Ko</small></button>`).join('');
     } catch (e) {
         box.innerHTML = /budget_history|42P01|not find|does not exist|404/i.test(e.message + ' ' + e.status)
             ? `<p class="pref-note">⚠️ L'historique n'est pas encore installé : colle le fichier supabase-historique.sql dans Supabase (SQL Editor → New query → Run).</p>`
@@ -7149,7 +7154,7 @@ async function syHistRestore(id, at) {
 function sySnapsHtml() {
     const l = sySnaps(); if (!l.length) return '';
     return `<p class="pref-note" style="margin-top:14px">🛟 Copies de secours sur cet appareil :</p>` + l.map((x, i) =>
-        `<button class="pref-opt sy-btn2" style="width:100%;margin:0 0 6px;text-align:left" onclick="syRestore(${i})">↩️ ${new Date(x.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${x.n} éléments<br><small style="opacity:.7">${syEsc(x.why)}</small></button>`).join('');
+        `<button class="sy-ver" onclick="syRestore(${i})"><span>↩️ ${new Date(x.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span><small>${x.n} éléments<br>${syEsc(x.why)}</small></button>`).join('');
 }
 function openSync() { syRender(); document.getElementById('syncModal').style.display = 'flex'; }
 function closeSync() { document.getElementById('syncModal').style.display = 'none'; }
