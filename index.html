@@ -6379,7 +6379,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 16-11 · 1h00</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 18-11 · 19h50</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
@@ -7013,7 +7013,10 @@ async function syFetch(path, opts, auth) {
     const c = syGet();
     const h = Object.assign({ apikey: c.key, 'Content-Type': 'application/json' }, opts.headers || {});
     if (auth) h.Authorization = 'Bearer ' + c.access;
-    const res = await fetch(c.url.replace(/\/+$/, '') + path, Object.assign({}, opts, { headers: h }));
+    let res;
+    try { res = await fetch(c.url.replace(/\/+$/, '') + path, Object.assign({}, opts, { headers: h })); }
+    catch (e) { throw new Error(navigator.onLine === false ? 'pas de connexion internet'
+        : "serveur injoignable : vérifie l'URL du projet (copiée-collée, sans faute) et que le projet n'est pas en pause dans Supabase"); }
     let body = null; try { body = await res.json(); } catch (e) {}
     if (!res.ok) { const m = body && (body.msg || body.message || body.error_description || body.error) || ('erreur ' + res.status); const err = new Error(m); err.status = res.status; throw err; }
     return body;
