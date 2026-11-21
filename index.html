@@ -6379,7 +6379,7 @@ document.addEventListener('keydown', e => {
         <p class="pref-note" id="prefCbNote"></p>
         <div class="pref-sec">Code PIN</div>
         <div class="pin-pref" id="pinPref"></div>
-        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 18-11 · 19h50</p>
+        <p class="pref-note" style="text-align:center;opacity:.6;margin-top:12px">Version 21-11 · 17h10</p>
         <button class="modal-cancel" onclick="closePrefs()">Fermer</button>
     </div>
 </div>
@@ -7116,7 +7116,8 @@ function syRender() {
     document.getElementById('syncErr').textContent = syLastErr ? 'Erreur : ' + syLastErr : '';
     if (!c.url || !c.key || c.edit) {
         el.innerHTML = `<p class="pref-note">1 · Ton projet Supabase (Project Settings → API) :</p>
-            <input type="url" id="syUrl" placeholder="URL du projet (https://xxxx.supabase.co)" value="${syEsc(c.url)}" autocomplete="off">
+            <p class="pref-note sy-mini">💡 Déjà connecté sur un autre appareil ? Là-bas, touche « 📲 Connecter un autre appareil » et colle ici le lien reçu, puis Enregistrer.</p>
+            <input type="url" id="syUrl" placeholder="URL du projet ou lien de connexion" value="${syEsc(c.url)}" autocomplete="off">
             <input type="text" id="syKeyIn" placeholder="Clé « anon public »" value="${syEsc(c.key)}" autocomplete="off">
             <button class="nc-ok sy-btn" onclick="syCfgSave()">Enregistrer</button>`;
     } else if (!c.refresh) {
@@ -7130,6 +7131,7 @@ function syRender() {
         el.innerHTML = `<p class="sy-ok">✅ Connecté : <b>${syEsc(c.email)}</b><br><small>Dernière synchro : ${t}</small></p>
             <p class="pref-note">Tes données sont envoyées après chaque modification et récupérées à l'ouverture de l'appli.</p>
             <button class="nc-ok sy-btn" onclick="sySyncNow()">🔄 Synchroniser maintenant</button>
+            <button class="pref-opt sy-btn2" style="width:100%;margin:8px 0 0;justify-content:center" onclick="syShareLink()">📲 Connecter un autre appareil</button>
             <button class="pin-link sy-link" onclick="syLogout()">Se déconnecter</button>`;
     }
     if (c.refresh && !c.edit) el.insertAdjacentHTML('beforeend', `<button class="pin-link sy-link" style="margin-top:10px" onclick="syHistOpen()">🕘 Voir l'historique sur le serveur</button><div id="syHist"></div>`);
@@ -7168,11 +7170,38 @@ function sySnapsHtml() {
     return `<p class="pref-note" style="margin-top:14px">🛟 Copies de secours sur cet appareil :</p>` + l.map((x, i) =>
         `<button class="sy-ver" onclick="syRestore(${i})"><span>↩️ ${new Date(x.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span><small>${x.n} éléments<br>${syEsc(x.why)}</small></button>`).join('');
 }
+/* Lien de connexion : transporte l'URL du projet et la clé publique vers un autre appareil (jamais le mot de passe) */
+function syLinkFor(c) { return location.origin + location.pathname + '#mbzsync=' + encodeURIComponent(btoa(JSON.stringify({ u: c.url, k: c.key, e: c.email || '' }))); }
+function syReadLink(txt) {          // accepte le lien complet ou seulement le code
+    const m = String(txt || '').match(/mbzsync=([^&\s]+)/); const code = m ? m[1] : String(txt || '').trim();
+    try { const o = JSON.parse(atob(decodeURIComponent(code))); return o && o.u && o.k ? o : null; } catch (e) { return null; }
+}
+async function syShareLink() {
+    const link = syLinkFor(syGet());
+    const txt = "Mon Budget Zen : ouvre ce lien sur l'autre appareil (ou colle-le dans ⚙️ → ☁️ Synchronisation), puis tape ton mot de passe.";
+    try { if (navigator.share) { await navigator.share({ title: 'Mon Budget Zen', text: txt, url: link }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(link); alert('Lien copié ✓\n\nEnvoie-le-toi (Notes, Messages, mail…) et ouvre-le sur l\'autre appareil, ou colle-le dans ⚙️ → ☁️ Synchronisation.'); }
+    catch (e) { prompt('Copie ce lien et ouvre-le sur l\'autre appareil :', link); }
+}
+function syApplyLink(o) {
+    const c = syGet();
+    if (c.refresh && c.url === o.u) { alert('Cet appareil est déjà connecté à ce projet ✓'); return false; }
+    c.url = o.u; c.key = o.k; if (o.e) c.email = o.e; delete c.edit; sySet(c); syLastErr = '';
+    return true;
+}
+(function () {                      // ouverture de l'appli par un lien de connexion
+    if (!/^#mbzsync=/.test(location.hash)) return;
+    const o = syReadLink(location.hash);
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    if (o && syApplyLink(o)) addEventListener('load', () => setTimeout(() => { openSync(); const p = document.getElementById('syPass'); if (p) p.focus(); }, 300));
+})();
 function openSync() { syRender(); document.getElementById('syncModal').style.display = 'flex'; }
 function closeSync() { document.getElementById('syncModal').style.display = 'none'; }
 function syCfgEdit() { const c = syGet(); c.edit = true; sySet(c); syRender(); }
 function syCfgSave() {
     const url = document.getElementById('syUrl').value.trim(), key = document.getElementById('syKeyIn').value.trim();
+    const viaLien = syReadLink(url);  // lien de connexion collé dans le premier champ
+    if (viaLien) { syApplyLink(viaLien); syRender(); return; }
     if (!/^https:\/\/.+/.test(url) || key.length < 20) { document.getElementById('syncErr').textContent = "Vérifie l'URL (https://…) et la clé."; return; }
     const c = syGet(); c.url = url; c.key = key; delete c.edit; sySet(c); syLastErr = ''; syRender();
 }
